@@ -1,59 +1,53 @@
 #!/usr/bin/env python3
-print("Hello World")
-
-import time
-import sys
 import gpiod
+import time
 
-# Define GPIO chip and lines
-GPIO_CHIP = "/dev/gpiochip0"  # Modify based on your system
-MOTOR_LINES = [12, 13, 16, 20]  # Your specified pin numbers
+# Define GPIO chip number
+GPIO_CHIP = "/dev/gpiochip2"
 
-# Function to setup GPIO lines
-def setup_gpio():
-    chip = gpiod.Chip(GPIO_CHIP)
-    lines = [chip.get_line(line) for line in MOTOR_LINES]
-    for line in lines:
-        line.request(consumer="stepper_motor", type=gpiod.LINE_REQ_DIR_OUT)
+# Define GPIO lines (pins)
+GPIO_LINES = [11, 12, 13, 15]
 
-    return lines
+# Define delay between steps (in seconds)
+DELAY = 0.01
 
-# Function to set GPIO value
-def set_gpio_value(lines, value):
-    for line, val in zip(lines, value):
-        line.set_value(val)
+# Open GPIO chip
+chip = gpiod.Chip(GPIO_CHIP)
 
-# Function to release GPIO lines
-def cleanup(lines):
-    for line in lines:
-        line.release()
+# Request GPIO lines
+lines = [chip.get_line(line) for line in GPIO_LINES]
+
+# Set GPIO lines direction to output
+for line in lines:
+    line.request(consumer="stepper_motor", type=gpiod.LINE_REQ_DIR_OUT)
 
 # Define the sequence of steps for the stepper motor
-SEQUENCE = [
-    (1, 0, 0, 0),
-    (1, 1, 0, 0),
-    (0, 1, 0, 0),
-    (0, 1, 1, 0),
-    (0, 0, 1, 0),
-    (0, 0, 1, 1),
-    (0, 0, 0, 1),
-    (1, 0, 0, 1)
+sequence = [
+    [1, 0, 0, 1],
+    [1, 0, 0, 0],
+    [1, 1, 0, 0],
+    [0, 1, 0, 0],
+    [0, 1, 1, 0],
+    [0, 0, 1, 0],
+    [0, 0, 1, 1],
+    [0, 0, 0, 1]
 ]
 
 # Function to rotate the stepper motor
-def rotate(steps, delay, lines):
-    try:
-        for _ in range(steps):
-            for step in SEQUENCE:
-                set_gpio_value(lines, step)
-                time.sleep(delay)
-    except KeyboardInterrupt:
-        print("Keyboard interrupt detected. Exiting...")
-        cleanup(lines)
-        sys.exit(0)
+def rotate(steps):
+    for step_num in range(steps):
+        print(f"Step {step_num + 1}: {sequence[step_num % len(sequence)]}")
+        step = sequence[step_num % len(sequence)]
+        for i, value in enumerate(step):
+            lines[i].set_value(value)
+        time.sleep(DELAY)
 
-# Setup GPIO lines
-motor_lines = setup_gpio()
+# Rotate the stepper motor 200 steps
+rotate(200)
 
-# Rotate the stepper motor 200 steps with a delay of 0.01 seconds between steps
-rotate(200, 0.01, motor_lines)
+# Release GPIO lines
+for line in lines:
+    line.release()
+
+# Close GPIO chip
+chip.close()
