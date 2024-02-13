@@ -4,7 +4,7 @@ print("Hello World")
 import time
 
 # Define GPIO pin numbers
-MOTOR_PINS = (2, 3, 4, 17)  # Replace with your actual pin numbers
+MOTOR_PINS = (12, 13, 16, 20)  # Replace with your actual pin numbers
 
 # GPIO file paths
 EXPORT_PATH = "/sys/class/gpio/export"
