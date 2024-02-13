@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import RPi.GPIO as GPIO
+import gpiozero as GPIO
 import time
 import sys
 print("Hello World")
