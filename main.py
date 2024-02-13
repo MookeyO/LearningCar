@@ -3,44 +3,33 @@ print("Hello World")
 
 import time
 import sys
+import gpiod
 
-# Define GPIO pin numbers
-MOTOR_PINS = (12, 13, 16, 20)  # Your specified pin numbers
+# Define GPIO chip and lines
+GPIO_CHIP = "/dev/gpiochip0"  # Modify based on your system
+MOTOR_LINES = [12, 13, 16, 20]  # Your specified pin numbers
 
-# GPIO file paths
-EXPORT_PATH = "/sys/class/gpio/export"
-UNEXPORT_PATH = "/sys/class/gpio/unexport"
-DIRECTION_PATH = "/sys/class/gpio/gpio{}/direction"
-VALUE_PATH = "/sys/class/gpio/gpio{}/value"
+# Function to setup GPIO lines
+def setup_gpio():
+    chip = gpiod.Chip(GPIO_CHIP)
+    lines = [chip.get_line(line) for line in MOTOR_LINES]
+    for line in lines:
+        line.request(consumer="stepper_motor", type=gpiod.LINE_REQ_DIR_OUT)
 
-# Function to export GPIO pin
-def export_gpio(pin):
-    print("Exporting GPIO pin", pin)
-    with open(EXPORT_PATH, 'w') as f:
-        f.write(str(pin))
-
-# Function to set GPIO direction
-def set_gpio_direction(pin, direction):
-    print("Setting GPIO direction for pin", pin, "to", direction)
-    with open(DIRECTION_PATH.format(pin), 'w') as f:
-        f.write(direction)
+    return lines
 
 # Function to set GPIO value
-def set_gpio_value(pin, value):
-    print("Setting GPIO value for pin", pin, "to", value)
-    with open(VALUE_PATH.format(pin), 'w') as f:
-        f.write(str(value))
+def set_gpio_value(lines, value):
+    for line, val in zip(lines, value):
+        line.set_value(val)
 
-# Export motor pins
-for pin in MOTOR_PINS:
-    export_gpio(pin)
-
-# Set motor pins direction to output
-for pin in MOTOR_PINS:
-    set_gpio_direction(pin, 'out')
+# Function to release GPIO lines
+def cleanup(lines):
+    for line in lines:
+        line.release()
 
 # Define the sequence of steps for the stepper motor
-sequence = [
+SEQUENCE = [
     (1, 0, 0, 0),
     (1, 1, 0, 0),
     (0, 1, 0, 0),
@@ -52,26 +41,19 @@ sequence = [
 ]
 
 # Function to rotate the stepper motor
-def rotate(steps, delay):
+def rotate(steps, delay, lines):
     try:
-        print("Rotating the stepper motor...")
         for _ in range(steps):
-            for step in sequence:
-                for i, pin in enumerate(MOTOR_PINS):
-                    set_gpio_value(pin, step[i])
-                print("Step:", step)
+            for step in SEQUENCE:
+                set_gpio_value(lines, step)
                 time.sleep(delay)
     except KeyboardInterrupt:
-        print("Exiting due to KeyboardInterrupt...")
-        cleanup()
+        print("Keyboard interrupt detected. Exiting...")
+        cleanup(lines)
+        sys.exit(0)
 
-# Cleanup function to unexport GPIO pins
-def cleanup():
-    print("Cleaning up GPIO pins...")
-    for pin in MOTOR_PINS:
-        with open(UNEXPORT_PATH, 'w') as f:
-            f.write(str(pin))
-    sys.exit(0)
+# Setup GPIO lines
+motor_lines = setup_gpio()
 
 # Rotate the stepper motor 200 steps with a delay of 0.01 seconds between steps
-rotate(200, 0.01)
+rotate(200, 0.01, motor_lines)
