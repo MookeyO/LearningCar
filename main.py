@@ -4,7 +4,8 @@ print("Hello World")
 # Import the required modules
 from gpiozero import Motor
 import time
-
+from gpiozero import Device
+Device.pin_factory = None
 # Define the pins for the stepper motor
 motor_pins = (2, 3, 4, 17)  # Replace with your actual pin numbers
 
