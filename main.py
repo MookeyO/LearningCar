@@ -1,52 +1,34 @@
 #!/usr/bin/env python3
-import gpiozero as GPIO
-import time
-import sys
 print("Hello World")
 
-GPIO.setmode(GPIO.BCM)
+# Import the required modules
+from gpiozero import Motor
+import time
 
-StepPins = [17,22,23,24]
+# Define the pins for the stepper motor
+motor_pins = (2, 3, 4, 17)  # Replace with your actual pin numbers
 
-for pin in StepPins:
-    print("Setup pins")
-    GPIO.setup(pin,GPIO.OUT)
-    GPIO.output(pin, False)
+# Create a Motor object
+motor = Motor(forward=motor_pins[0], backward=motor_pins[1], enable=(motor_pins[2], motor_pins[3]))
 
-Seq = [[1,0,0,1],
-         [1,0,0,0],
-         [1,1,0,0],
-         [0,1,0,0],
-         [0,1,1,0],
-         [0,0,1,0],
-         [0,0,1,1],
-         [0,0,0,1]]
+# Define the sequence of steps for the stepper motor
+sequence = [
+    (1, 0, 0, 0),
+    (1, 1, 0, 0),
+    (0, 1, 0, 0),
+    (0, 1, 1, 0),
+    (0, 0, 1, 0),
+    (0, 0, 1, 1),
+    (0, 0, 0, 1),
+    (1, 0, 0, 1)
+]
 
-StepCount = len(Seq)
-StepDir = 1
-StepCounter = 0
+# Function to rotate the stepper motor
+def rotate(steps, delay):
+    for _ in range(steps):
+        for step in sequence:
+            motor.value = step
+            time.sleep(delay)
 
-if len(sys.argv) > 1:
-    WaitTime = int(sys.argv[1])/float(1000)
-else:
-    WaitTime = 10/float(1000)
-
-while True:
-    for pin in range(0,4):
-        xpin = StepPins[pin]
-        if Seq[StepCounter][pin]!=0:
-            print(" Step %i Enable %i" %(StepCounter,xpin))
-            GPIO.output(xpin, True)
-        else:
-            GPIO.output(xpin, False)
-
-    StepCounter += StepDir
-
-    if (StepCounter >= StepCount):
-        StepCounter = 0
-    if (StepCounter < 0):
-        StepCounter = StepCount + StepDir
-
-    time.sleep(WaitTime)
-
-
+# Rotate the stepper motor 200 steps with a delay of 0.01 seconds between steps
+rotate(200, 0.01)
