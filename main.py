@@ -1,53 +1,95 @@
-#!/usr/bin/env python3
-import gpiod
+#!/usr/bin/python
+# Import required libraries
+import sys
 import time
+import RPi.GPIO as GPIO
 
-# Define GPIO chip number
-GPIO_CHIP = "/dev/gpiochip2"
+# Use BCM GPIO references
+# instead of physical pin numbers
+GPIO.setmode(GPIO.BCM)
 
-# Define GPIO lines (pins)
-GPIO_LINES = [11, 12, 13, 15]
+# Define GPIO signals to use
+# Physical pins 11,15,16,18
+# GPIO17,GPIO22,GPIO23,GPIO24
+StepPins = [14, 15, 18, 23]
 
-# Define delay between steps (in seconds)
-DELAY = 0.01
+# Set all pins as output
+for pin in StepPins:
+    print("Setup pins")
+    GPIO.setup(pin, GPIO.OUT)
+    GPIO.output(pin, False)
 
-# Open GPIO chip
-chip = gpiod.Chip(GPIO_CHIP)
+# Define advanced sequence
+# as shown in manufacturers datasheet
+Seq = [[1, 0, 0, 1],
+       [1, 0, 0, 0],
+       [1, 1, 0, 0],
+       [0, 1, 0, 0],
+       [0, 1, 1, 0],
+       [0, 0, 1, 0],
+       [0, 0, 1, 1],
+       [0, 0, 0, 1]]
 
-# Request GPIO lines
-lines = [chip.get_line(line) for line in GPIO_LINES]
+StepCount = len(Seq)
+StepDir = 1  # Set to 1 or 2 for clockwise
+# Set to -1 or -2 for anti-clockwise
 
-# Set GPIO lines direction to output
-for line in lines:
-    line.request(consumer="stepper_motor", type=gpiod.LINE_REQ_DIR_OUT)
+# Read wait time from command line
+if len(sys.argv) > 1:
+    WaitTime = 1 / 1000.0
+else:
+    WaitTime = 1 / 1000.0
 
-# Define the sequence of steps for the stepper motor
-sequence = [
-    [1, 0, 0, 1],
-    [1, 0, 0, 0],
-    [1, 1, 0, 0],
-    [0, 1, 0, 0],
-    [0, 1, 1, 0],
-    [0, 0, 1, 0],
-    [0, 0, 1, 1],
-    [0, 0, 0, 1]
-]
+# Initialise variables
+StepCounter = 0
 
-# Function to rotate the stepper motor
-def rotate(steps):
-    for step_num in range(steps):
-        print(f"Step {step_num + 1}: {sequence[step_num % len(sequence)]}")
-        step = sequence[step_num % len(sequence)]
-        for i, value in enumerate(step):
-            lines[i].set_value(value)
-        time.sleep(DELAY)
+# Ultrasonic Sensor setup
+GPIO_TRIGGER = 25
+GPIO_ECHO = 7
+GPIO.setup(GPIO_TRIGGER, GPIO.OUT)
+GPIO.setup(GPIO_ECHO, GPIO.IN)
 
-# Rotate the stepper motor 200 steps
-rotate(200)
+def distance():
+    GPIO.output(GPIO_TRIGGER, True)
+    time.sleep(0.00001)
+    GPIO.output(GPIO_TRIGGER, False)
+    StartTime = time.time()
+    StopTime = time.time()
+    while GPIO.input(GPIO_ECHO) == 0:
+        StartTime = time.time()
+    while GPIO.input(GPIO_ECHO) == 1:
+        StopTime = time.time()
+    TimeElapsed = StopTime - StartTime
+    distance = (TimeElapsed * 34300) / 2
+    return distance
 
-# Release GPIO lines
-for line in lines:
-    line.release()
+# Start main loop
+try:
+    while True:
+        dist = distance()
+        if dist is not None:
+            print("Distance: %.1f cm" % dist)
+            if dist > 5:
+                for pin in range(0, 4):
+                    xpin = StepPins[pin]
+                    if Seq[StepCounter][pin] != 0:
+                        GPIO.output(xpin, True)
+                    else:
+                        GPIO.output(xpin, False)
+                StepCounter += StepDir
+                if StepCounter >= StepCount:
+                    StepCounter = 0
+                if StepCounter < 0:
+                    StepCounter = StepCount + StepDir
+                time.sleep(WaitTime)
+            else:
+                for pin in StepPins:
+                    GPIO.output(pin, False)
+        else:
+            print("Failed to get distance measurement.")
+        time.sleep(0.1)  # Adjust the delay as needed
+except KeyboardInterrupt:
+    print("Measurement stopped by User")
+finally:
+    GPIO.cleanup()
 
-# Close GPIO chip
-chip.close()
