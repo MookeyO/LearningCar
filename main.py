@@ -68,8 +68,7 @@ try:
     while True:
         dist = distance()
         if dist is not None:
-            print("Distance: %.1f cm" % dist)
-            if dist > 5:
+            if dist > 10:
                 for pin in range(0, 4):
                     xpin = StepPins[pin]
                     if Seq[StepCounter][pin] != 0:
