@@ -53,7 +53,7 @@ def turn_right(steps):
         StepCounter1 += 1
 
         # Increment StepCounter2 every other step
-        if _ % 2 == 0:
+        if _ % 3 == 0:
             StepCounter2 += 1
 
         # Reset counters to 0 when they reach the end of their respective sequences
