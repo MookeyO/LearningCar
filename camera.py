@@ -23,6 +23,18 @@ PAGE = """\
     xhr.send();
   }
 
+  function turnLeft() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/turn_left", true);
+    xhr.send();
+  }
+
+  function turnRight() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/turn_right", true);
+    xhr.send();
+  }
+
   function stopMovement() {
     var xhr = new XMLHttpRequest();
     xhr.open("GET", "/stop_movement", true);
@@ -36,6 +48,8 @@ PAGE = """\
 <center>
   <button onmousedown="moveForward()" onmouseup="stopMovement()">Move Forward</button>
   <button onmousedown="moveBackward()" onmouseup="stopMovement()">Move Backward</button>
+  <button onmousedown="turnLeft()" onmouseup="stopMovement()">Turn Left</button>
+  <button onmousedown="turnRight()" onmouseup="stopMovement()">Turn Right</button>
 </center>
 </body>
 </html>
@@ -94,19 +108,23 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
                     'Removed streaming client %s: %s',
                     self.client_address, str(e))
         elif self.path == '/move_forward':
-            # Call the moveForward.py script
             subprocess.Popen(["python3", "moveForward.py"])
             self.send_response(200)
             self.end_headers()
         elif self.path == '/move_backward':
-            # Call the moveBackward.py script
             subprocess.Popen(["python3", "moveBackward.py"])
+            self.send_response(200)
+            self.end_headers()
+        elif self.path == '/turn_left':
+            subprocess.Popen(["python3", "turnLeft.py"])
+            self.send_response(200)
+            self.end_headers()
+        elif self.path == '/turn_right':
+            subprocess.Popen(["python3", "turnRight.py"])
             self.send_response(200)
             self.end_headers()
         elif self.path == '/stop_movement':
             # You may need to implement this based on how your robot stops
-            # For example, you might need to call another script to stop the movement
-            # subprocess.Popen(["python3", "stopMovement.py"])
             self.send_response(200)
             self.end_headers()
         else:
@@ -126,4 +144,3 @@ with picamera.PiCamera(resolution='640x480', framerate=24) as camera:
         server.serve_forever()
     finally:
         camera.stop_recording()
-
