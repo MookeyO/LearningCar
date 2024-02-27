@@ -27,7 +27,7 @@ def distance():
 
         TimeElapsed = StopTime - StartTime
         distance = (TimeElapsed * 34300) / 2
-
+        distance = int(distance)
         return distance
     except Exception as e:
         print("Error:", e)
