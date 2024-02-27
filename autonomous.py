@@ -18,7 +18,7 @@ def autonomous():
     state = 'Start'
     errorActions = 0
     while True:
-        distance = us_sensor.distance
+        distance = us_sensor.distance()
         print(distance)
         activeBuzzer.activate_buzzer(1)
 
@@ -72,3 +72,4 @@ def autonomous():
 
 if __name__ == "__main__":
     autonomous()
+    GPIO.cleanup()

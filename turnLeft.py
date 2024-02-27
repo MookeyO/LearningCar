@@ -27,7 +27,7 @@ for pin in StepPins1 + StepPins2:
     GPIO.output(pin, False)
 
 # Function to move both motors forward by a specified number of steps
-def turn_right(steps):
+def turn_left(steps):
     StepCounter1 = 0
     StepCounter2 = 0
     StepCount1 = len(Seq1)
