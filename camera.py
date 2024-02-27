@@ -6,7 +6,7 @@ from threading import Condition
 from http import server
 import subprocess
 
-PAGE = """\
+PAGE = """
 <html>
 <head>
 <title>Raspberry Pi - Surveillance Camera</title>
@@ -40,6 +40,18 @@ PAGE = """\
     xhr.open("GET", "/stop_movement", true);
     xhr.send();
   }
+
+  function startAutonomous() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/start_autonomous", true);
+    xhr.send();
+  }
+
+  function cancelAutonomous() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/cancel_autonomous", true);
+    xhr.send();
+  }
 </script>
 </head>
 <body>
@@ -50,9 +62,12 @@ PAGE = """\
   <button onmousedown="moveBackward()" onmouseup="stopMovement()">Move Backward</button>
   <button onmousedown="turnLeft()" onmouseup="stopMovement()">Turn Left</button>
   <button onmousedown="turnRight()" onmouseup="stopMovement()">Turn Right</button>
+  <button onclick="startAutonomous()">Start Autonomous</button>
+  <button onclick="cancelAutonomous()">Cancel Autonomous</button>
 </center>
 </body>
 </html>
+
 """
 
 class StreamingOutput(object):
@@ -125,6 +140,17 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
             self.end_headers()
         elif self.path == '/stop_movement':
             # You may need to implement this based on how your robot stops
+            self.send_response(200)
+            self.end_headers()
+        elif self.path == '/start_autonomous':
+            subprocess.Popen(["python3", "autonomous.py"])
+            self.send_response(200)
+            self.end_headers()
+
+        elif self.path == '/cancel_autonomous':
+        # You need to implement a way to cancel the autonomous script
+        # For example, you could kill the subprocess running autonomous.py
+            subprocess.Popen(["pkill", "-f", "autonomous.py"])  # This command kills the autonomous.py process
             self.send_response(200)
             self.end_headers()
         else:
