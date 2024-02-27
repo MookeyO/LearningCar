@@ -11,6 +11,7 @@ def activate_buzzer():
     time.sleep(.3)
     GPIO.output(GPIO_Buzzer, True)
     time.sleep(.1)
+    GPIO.output(GPIO_Buzzer, False)
 
 if __name__ == "__main__":
     activate_buzzer()
