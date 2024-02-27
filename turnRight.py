@@ -50,11 +50,11 @@ def turn_right(steps):
                 GPIO.output(xpin1, False)
         
         # Increment StepCounter2 as normal
-        StepCounter2 += 1
+        StepCounter1 += 1
 
         # Increment StepCounter1 every other step
         if _ % 3 == 0:
-            StepCounter1 += 1
+            StepCounter2 += 1
 
         # Reset counters to 0 when they reach the end of their respective sequences
         if StepCounter1 >= StepCount1:
