@@ -69,7 +69,4 @@ def turn_right(steps):
 if __name__ == "__main__":
     turn_right(500)
     GPIO.cleanup()  # Cleanup GPIO pins after use
-# Move both motors forward by a specified number of steps
-if __name__ == "__main__":
-    move_forward(500)
-    GPIO.cleanup()  # Cleanup GPIO pins after use
+
