@@ -1,95 +1,174 @@
-#!/usr/bin/python
-# Import required libraries
-import sys
-import time
-import RPi.GPIO as GPIO
+#!/usr/bin/env python3
+#imports
+import io
+import picamera
+import logging
+import socketserver
+from threading import Condition
+from http import server
+import subprocess
+# HTML code for the web page
+PAGE = """
+<html>
+<head>
+<title>RoboCar</title>
+<script>
+  function moveForward() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/move_forward", true);
+    xhr.send();
+  }
 
-# Use BCM GPIO references
-# instead of physical pin numbers
-GPIO.setmode(GPIO.BCM)
+  function moveBackward() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/move_backward", true);
+    xhr.send();
+  }
 
-# Define GPIO signals to use
-# Physical pins 11,15,16,18
-# GPIO17,GPIO22,GPIO23,GPIO24
-StepPins = [14, 15, 18, 23]
+  function turnLeft() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/turn_left", true);
+    xhr.send();
+  }
 
-# Set all pins as output
-for pin in StepPins:
-    print("Setup pins")
-    GPIO.setup(pin, GPIO.OUT)
-    GPIO.output(pin, False)
+  function turnRight() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/turn_right", true);
+    xhr.send();
+  }
 
-# Define advanced sequence
-# as shown in manufacturers datasheet
-Seq = [[1, 0, 0, 1],
-       [1, 0, 0, 0],
-       [1, 1, 0, 0],
-       [0, 1, 0, 0],
-       [0, 1, 1, 0],
-       [0, 0, 1, 0],
-       [0, 0, 1, 1],
-       [0, 0, 0, 1]]
+  function stopMovement() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/stop_movement", true);
+    xhr.send();
+  }
 
-StepCount = len(Seq)
-StepDir = 1  # Set to 1 or 2 for clockwise
-# Set to -1 or -2 for anti-clockwise
+  function startAutonomous() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/start_autonomous", true);
+    xhr.send();
+  }
 
-# Read wait time from command line
-if len(sys.argv) > 1:
-    WaitTime = 1 / 1000.0
-else:
-    WaitTime = 1 / 1000.0
+  function cancelAutonomous() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/cancel_autonomous", true);
+    xhr.send();
+  }
+</script>
+</head>
+<body>
+<center><h1>RoboCar</h1></center>
+<center><img src="stream.mjpg" width="640" height="480"></center>
+<center>
+  <button onmousedown="moveForward()" onmouseup="stopMovement()">Move Forward</button>
+  <button onmousedown="moveBackward()" onmouseup="stopMovement()">Move Backward</button>
+  <button onmousedown="turnLeft()" onmouseup="stopMovement()">Turn Left</button>
+  <button onmousedown="turnRight()" onmouseup="stopMovement()">Turn Right</button>
+  <button onclick="startAutonomous()">Start Autonomous</button>
+  <button onclick="cancelAutonomous()">Cancel Autonomous</button>
+</center>
+</body>
+</html>
 
-# Initialise variables
-StepCounter = 0
+"""
+#streaming output class that manages the stream of the camera
+class StreamingOutput(object):
+    def __init__(self):
+        self.frame = None
+        self.buffer = io.BytesIO()
+        self.condition = Condition()
 
-# Ultrasonic Sensor setup
-GPIO_TRIGGER = 25
-GPIO_ECHO = 7
-GPIO.setup(GPIO_TRIGGER, GPIO.OUT)
-GPIO.setup(GPIO_ECHO, GPIO.IN)
+    def write(self, buf):
+        if buf.startswith(b'\xff\xd8'):
+            # New frame, copy the existing buffer's content and notify all
+            # clients it's available
+            self.buffer.truncate()
+            with self.condition:
+                self.frame = self.buffer.getvalue()
+                self.condition.notify_all()
+            self.buffer.seek(0)
+        return self.buffer.write(buf)
+#streaming handler class that handles the streaming of the camera feed to the web page
+class StreamingHandler(server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/':
+            self.send_response(301)
+            self.send_header('Location', '/index.html')
+            self.end_headers()
+        elif self.path == '/index.html':
+            content = PAGE.encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.send_header('Content-Length', len(content))
+            self.end_headers()
+            self.wfile.write(content)
+        elif self.path == '/stream.mjpg':
+            self.send_response(200)
+            self.send_header('Age', 0)
+            self.send_header('Cache-Control', 'no-cache, private')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=FRAME')
+            self.end_headers()
+            try:
+                while True:
+                    with output.condition:
+                        output.condition.wait()
+                        frame = output.frame
+                    self.wfile.write(b'--FRAME\r\n')
+                    self.send_header('Content-Type', 'image/jpeg')
+                    self.send_header('Content-Length', len(frame))
+                    self.end_headers()
+                    self.wfile.write(frame)
+                    self.wfile.write(b'\r\n')
+            except Exception as e:
+                logging.warning(
+                    'Removed streaming client %s: %s',
+                    self.client_address, str(e))
+        elif self.path == '/move_forward':
+            subprocess.Popen(["python3", "moveForward.py"])
+            self.send_response(200)
+            self.end_headers()
+        elif self.path == '/move_backward':
+            subprocess.Popen(["python3", "moveBackward.py"])
+            self.send_response(200)
+            self.end_headers()
+        elif self.path == '/turn_left':
+            subprocess.Popen(["python3", "turnLeft.py"])
+            self.send_response(200)
+            self.end_headers()
+        elif self.path == '/turn_right':
+            subprocess.Popen(["python3", "turnRight.py"])
+            self.send_response(200)
+            self.end_headers()
+        elif self.path == '/stop_movement':
+            # You may need to implement this based on how your robot stops
+            self.send_response(200)
+            self.end_headers()
+        elif self.path == '/start_autonomous':
+            subprocess.Popen(["python3", "autonomous.py"])
+            self.send_response(200)
+            self.end_headers()
 
-def distance():
-    GPIO.output(GPIO_TRIGGER, True)
-    time.sleep(0.00001)
-    GPIO.output(GPIO_TRIGGER, False)
-    StartTime = time.time()
-    StopTime = time.time()
-    while GPIO.input(GPIO_ECHO) == 0:
-        StartTime = time.time()
-    while GPIO.input(GPIO_ECHO) == 1:
-        StopTime = time.time()
-    TimeElapsed = StopTime - StartTime
-    distance = (TimeElapsed * 34300) / 2
-    return distance
-
-# Start main loop
-try:
-    while True:
-        dist = distance()
-        if dist is not None:
-            print("Distance: %.1f cm" % dist)
-            if dist > 5:
-                for pin in range(0, 4):
-                    xpin = StepPins[pin]
-                    if Seq[StepCounter][pin] != 0:
-                        GPIO.output(xpin, True)
-                    else:
-                        GPIO.output(xpin, False)
-                StepCounter += StepDir
-                if StepCounter >= StepCount:
-                    StepCounter = 0
-                if StepCounter < 0:
-                    StepCounter = StepCount + StepDir
-                time.sleep(WaitTime)
-            else:
-                for pin in StepPins:
-                    GPIO.output(pin, False)
+        elif self.path == '/cancel_autonomous':
+        # You need to implement a way to cancel the autonomous script
+        # For example, you could kill the subprocess running autonomous.py
+            subprocess.Popen(["pkill", "-f", "autonomous.py"])  # This command kills the autonomous.py process
+            self.send_response(200)
+            self.end_headers()
         else:
-            print("Failed to get distance measurement.")
-        time.sleep(0.1)  # Adjust the delay as needed
-except KeyboardInterrupt:
-    print("Measurement stopped by User")
-finally:
-    GPIO.cleanup()
-
+            self.send_error(404)
+            self.end_headers()
+#streaming server class that manages the server
+class StreamingServer(socketserver.ThreadingMixIn, server.HTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+#main function that starts the camera and the server
+with picamera.PiCamera(resolution='640x480', framerate=24) as camera:
+    output = StreamingOutput()
+    camera.start_recording(output, format='mjpeg')
+    try:
+        address = ('', 8000)
+        server = StreamingServer(address, StreamingHandler)
+        server.serve_forever()
+    finally:
+        camera.stop_recording()

@@ -2,32 +2,33 @@
 import RPi.GPIO as GPIO
 import time
 
-print('Moving Forward!')
-
-# GPIO pins for the first stepper motor
-StepPins1 = [14, 15, 18, 23]  # Assuming you're using 4 pins for the stepper motor
-# Define the sequence of steps for the first motor
-Seq1 = [[1, 0, 0, 0],
-        [0, 1, 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1]]
-
-# GPIO pins for the second stepper motor
-StepPins2 = [12, 16, 20, 21]  # Pins for the second motor
-# Define the sequence of steps for the second motor
-Seq2 = [[1, 0, 0, 0],
-        [0, 1, 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1]]
-
-# Initialize GPIO for both motors
-GPIO.setmode(GPIO.BCM)
-for pin in StepPins1 + StepPins2:
-    GPIO.setup(pin, GPIO.OUT)
-    GPIO.output(pin, False)
 
 # Function to move both motors forward by a specified number of steps
 def turn_right(steps):
+    print('Moving Forward!')
+
+    # GPIO pins for the first stepper motor
+    StepPins1 = [14, 15, 18, 23]  # Assuming you're using 4 pins for the stepper motor
+    # Define the sequence of steps for the first motor
+    Seq1 = [[1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]]
+
+    # GPIO pins for the second stepper motor
+    StepPins2 = [12, 16, 20, 21]  # Pins for the second motor
+    # Define the sequence of steps for the second motor
+    Seq2 = [[1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]]
+
+    # Initialize GPIO for both motors
+    GPIO.setmode(GPIO.BCM)
+    for pin in StepPins1 + StepPins2:
+        GPIO.setup(pin, GPIO.OUT)
+        GPIO.output(pin, False)
+    # Initialize step counters
     StepCounter1 = 0
     StepCounter2 = 0
     StepCount1 = len(Seq1)
@@ -64,12 +65,13 @@ def turn_right(steps):
 
         # Delay to control motor speed for both motors
         time.sleep(0.01)
-
+    #cleanup pins at end of function
+    GPIO.cleanup()
 # Move both motors forward by a specified number of steps
 if __name__ == "__main__":
     turn_right(500)
     GPIO.cleanup()  # Cleanup GPIO pins after use
 # Move both motors forward by a specified number of steps
 if __name__ == "__main__":
-    move_forward(500)
+    turn_right(500)
     GPIO.cleanup()  # Cleanup GPIO pins after use
