@@ -1,0 +1,2 @@
+Program that uses an FSM model to autonomously move a vehicle built with a raspberry pi zero w. Any device with GPIO pins and a camera module can be used. Be aware this project uses rpicamera and RPIO.GPIO as dependencies so it would need some modification.
+Run using main.py and then open a web browser to <device-ip>:8000 to see camera output and control the vehicle. Autonomous mode is what directs the device without additional input.
